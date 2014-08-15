@@ -8,14 +8,15 @@ android {
 
     QT += androidextras
     SOURCES += \
-        sialanjavalayer.cpp
+        sialantools/sialanjavalayer.cpp
 
     HEADERS += \
-        sialanjavalayer.h
+        sialantools/sialanjavalayer.h
 }
 
 SOURCES += \
-    sialandevices.cpp
+    sialantools/sialandevices.cpp
 
 HEADERS += \
-    sialandevices.h
+    sialantools/sialandevices.h
+
