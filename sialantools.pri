@@ -15,8 +15,12 @@ android {
 }
 
 SOURCES += \
-    sialantools/sialandevices.cpp
+    sialantools/sialandevices.cpp \
+    sialantools/sialanqtlogger.cpp \
+    sialantools/sialantools.cpp
 
 HEADERS += \
-    sialantools/sialandevices.h
+    sialantools/sialandevices.h \
+    sialantools/sialanqtlogger.cpp \
+    sialantools/sialantools.cpp
 
