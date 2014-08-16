@@ -21,6 +21,11 @@ SOURCES += \
 
 HEADERS += \
     sialantools/sialandevices.h \
-    sialantools/sialanqtlogger.cpp \
-    sialantools/sialantools.cpp
+    sialantools/sialanqtlogger.h \
+    sialantools/sialantools.h
+
+OTHER_FILES += \
+    sialantools/android-build/src/org/sialan/android/SialanActivity.java \
+    sialantools/android-build/src/org/sialan/android/SialanApplication.java \
+    sialantools/android-build/src/org/sialan/android/SialanJavaLayer.java
 
