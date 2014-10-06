@@ -70,6 +70,7 @@ Rectangle {
     }
 
     function showSubMessage( item_component ){
+        hideSubMessage()
         var item = item_component.createObject(View.root);
         var msg = sub_msg_component.createObject(View.root);
         msg.source = mainFrame

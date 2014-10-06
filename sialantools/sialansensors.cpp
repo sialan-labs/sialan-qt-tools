@@ -66,11 +66,12 @@ public:
 
     ProVector pg_vector;
     ProVector pa_vector;
+    ProVector pr_vector;
 
     ProVector g_vector;
     ProVector a_vector;
+    ProVector r_vector;
 
-    ProVector rtt_vector;
     ProVector gyr_vector;
 
     int duration_timer;
@@ -141,17 +142,17 @@ qreal SialanSensors::gz() const
 
 qreal SialanSensors::angleX() const
 {
-    return p->rtt_vector.x-p->zeroX*180/M_PI;
+    return p->r_vector.x-p->zeroX*180/M_PI;
 }
 
 qreal SialanSensors::angleY() const
 {
-    return p->rtt_vector.y-p->zeroY*180/M_PI;
+    return p->r_vector.y-p->zeroY*180/M_PI;
 }
 
 qreal SialanSensors::angleZ() const
 {
-    return p->rtt_vector.z-p->zeroZ*180/M_PI;
+    return p->r_vector.z-p->zeroZ*180/M_PI;
 }
 
 qreal SialanSensors::zeroAngleX() const
@@ -293,9 +294,9 @@ void SialanSensors::stop()
 
 void SialanSensors::zero()
 {
-    p->zeroX = p->rtt_vector.x*M_PI/180;
-    p->zeroY = p->rtt_vector.y*M_PI/180;
-    p->zeroZ = p->rtt_vector.z*M_PI/180;
+    p->zeroX = p->r_vector.x*M_PI/180;
+    p->zeroY = p->r_vector.y*M_PI/180;
+    p->zeroZ = p->r_vector.z*M_PI/180;
 
     refresh();
 
@@ -320,8 +321,28 @@ void SialanSensors::setZero(qreal xrad, qreal yrad)
 
 void SialanSensors::refresh()
 {
+    p->r_vector.x = p->pr_vector.x;
+    p->r_vector.y = p->pr_vector.y;
+    p->r_vector.z = p->pr_vector.z;
+
     p->a_vector = rebase(p->pa_vector);
     p->g_vector = rebase(p->pg_vector);
+
+    return;
+    const SialanSensorsResItem & resX0 = analizeItem(p->a_vector.x,p->a_vector.y,p->a_vector.z,false);
+    const SialanSensorsResItem & resY0 = analizeItem(p->a_vector.y,p->a_vector.x,p->a_vector.z,false);
+
+    const SialanSensorsResItem & resX1 = analizeItem(p->a_vector.x,p->a_vector.y,p->a_vector.z,true);
+    const SialanSensorsResItem & resY1 = analizeItem(p->a_vector.y,p->a_vector.x,p->a_vector.z,true);
+
+    const SialanSensorsResItem & resX = qAbs(resX0.beta)<qAbs(resX1.beta)? resX0 : resX1;
+    const SialanSensorsResItem & resY = qAbs(resY0.beta)<qAbs(resY1.beta)? resY0 : resY1;
+
+    p->r_vector.x = (M_PI/2-resY.beta)*180/M_PI;
+    p->r_vector.y = (M_PI/2-resX.beta)*180/M_PI;
+
+    p->a_vector.x = resX.newX;
+    p->a_vector.y = resY.newX;
 }
 
 ProVector SialanSensors::rebase(const ProVector &v)
@@ -332,12 +353,9 @@ ProVector SialanSensors::rebase(const ProVector &v)
     const qreal y = v.y;
     const qreal z = v.z;
 
-    QTransform t;
-    t.rotateRadians(p->zeroX,Qt::XAxis);
-    t.rotateRadians(p->zeroY,Qt::YAxis);
-    t.rotateRadians(p->zeroZ,Qt::ZAxis);
-
-    QMatrix4x4 m(t);
+    QMatrix4x4 m;
+    m.rotate(p->zeroX*180/M_PI,1,0,0);
+    m.rotate(p->zeroY*180/M_PI,0,1,0);
 
     const QVector3D & v3d = m.map(QVector3D(x,y,z));
 
@@ -348,27 +366,33 @@ ProVector SialanSensors::rebase(const ProVector &v)
     return res;
 }
 
-SialanSensorsResItem SialanSensors::analizeItem(qreal x, qreal y, bool ambiguity)
+SialanSensorsResItem SialanSensors::analizeItem(qreal x, qreal y, qreal z, bool ambiguity)
 {
     SialanSensorsResItem res;
     res.beta = 0;
     res.newX = 0;
 
-    const qreal f = qPow(x*x+y*y,0.5);
+    const qreal f = qPow(x*x+z*z,0.5);
     if( f == 0 )
         return res;
 
-    const qreal al = p->alp + qAsin(y/f);
-    const qreal g = EARTH_GRAVITY;
+    const qreal al = qAsin(z/f);
 
-    const qreal bt_p = qAsin( f*qSin(al)/g );
+    const qreal fxy = qPow(x*x+y*y,0.5);
+    const qreal g   = EARTH_GRAVITY;
+    const qreal gxy = pow( g<z?0:g*g-z*z ,0.5);
+    const qreal gx  = fxy==0? 0 : gxy*x/fxy;
+    const qreal gxz = qPow(gx*gx+z*z,0.5);
+
+    const qreal sinb = z/gxz;
+    const qreal bt_p = qAsin( sinb>1?1:(sinb<-1?-1:sinb) );
     const qreal bt = ambiguity? M_PI-bt_p : bt_p;
-    const qreal nx = f*qCos(al) - g*qCos(bt);
+    const qreal nx = f*qCos(al) - gxz*qCos(bt);
 
     res.beta = bt;
     res.newX = nx;
     res.f = f;
-    res.g = g;
+    res.g = gxz;
     res.alpha = al;
 
     return res;
@@ -404,9 +428,9 @@ void SialanSensors::rtt_reading()
         return;
 
     QRotationReading *rd = p->rotation->reading();
-    p->rtt_vector.x = rd->x();
-    p->rtt_vector.y = rd->y();
-    p->rtt_vector.z = rd->z();
+    p->pr_vector.x = rd->x();
+    p->pr_vector.y = rd->y();
+    p->pr_vector.z = rd->z();
     refresh();
 }
 
