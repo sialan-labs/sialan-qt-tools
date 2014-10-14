@@ -70,7 +70,6 @@ Rectangle {
     }
 
     function showSubMessage( item_component ){
-        hideSubMessage()
         var item = item_component.createObject(View.root);
         var msg = sub_msg_component.createObject(View.root);
         msg.source = mainFrame
@@ -136,5 +135,9 @@ Rectangle {
         id: modern_pbar_component
         ModernProgressBar {
         }
+    }
+
+    Component.onCompleted: {
+        View.root = smain
     }
 }
