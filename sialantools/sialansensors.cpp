@@ -104,6 +104,20 @@ SialanSensors::SialanSensors(QObject *parent) :
     p->rotation = new QRotationSensor(this);
     p->gyroscope = new QGyroscope(this);
 
+    const qreal ax = -1.93166;
+    const qreal ay = 3.28901;
+    const qreal az = 9.31951;
+
+    const qreal rx = 18.5109;
+    const qreal ry = 11.3424;
+    const qreal rz = -46.1778;
+
+    const SialanSensorsResItem & resX0 = analizeItem(ay,ax,az,false);
+
+    qDebug() << resX0.beta*180/M_PI << resX0.newX << resX0.alpha*180/M_PI << "\n"
+             << ax << ay << az << "\n"
+             << rx << ry << rz;
+
     connect( p->gravity      , SIGNAL(readingChanged()), SLOT(grv_reading()) );
     connect( p->accelerometer, SIGNAL(readingChanged()), SLOT(acc_reading()) );
     connect( p->rotation     , SIGNAL(readingChanged()), SLOT(rtt_reading()) );
@@ -335,11 +349,23 @@ void SialanSensors::refresh()
     const SialanSensorsResItem & resX1 = analizeItem(p->a_vector.x,p->a_vector.y,p->a_vector.z,true);
     const SialanSensorsResItem & resY1 = analizeItem(p->a_vector.y,p->a_vector.x,p->a_vector.z,true);
 
-    const SialanSensorsResItem & resX = qAbs(resX0.beta)<qAbs(resX1.beta)? resX0 : resX1;
-    const SialanSensorsResItem & resY = qAbs(resY0.beta)<qAbs(resY1.beta)? resY0 : resY1;
+    SialanSensorsResItem resX;
+    if( qAbs(qAbs(90-resX0.beta*180/M_PI)-qAbs(angleY())) < qAbs(qAbs(90-resX1.beta*180/M_PI)-qAbs(angleY())) )
+        resX = resX0;
+    else
+        resX = resX1;
 
-    p->r_vector.x = (M_PI/2-resY.beta)*180/M_PI;
-    p->r_vector.y = (M_PI/2-resX.beta)*180/M_PI;
+    SialanSensorsResItem resY;
+    if( qAbs(qAbs(90-resY0.beta*180/M_PI)-qAbs(angleX())) < qAbs(qAbs(90-resY1.beta*180/M_PI)-qAbs(angleX())) )
+        resY = resY0;
+    else
+        resY = resY1;
+
+    int rvector_x_sign = angleX()<0? -1 : 1;
+    int rvector_y_sign = angleY()<0? -1 : 1;
+
+    p->r_vector.x = rvector_x_sign*(M_PI/2-resY.beta)*180/M_PI + p->zeroX*M_PI/180;
+    p->r_vector.y = rvector_y_sign*(M_PI/2-resX.beta)*180/M_PI + p->zeroY*M_PI/180;
 
     p->a_vector.x = resX.newX;
     p->a_vector.y = resY.newX;
@@ -378,16 +404,13 @@ SialanSensorsResItem SialanSensors::analizeItem(qreal x, qreal y, qreal z, bool 
 
     const qreal al = qAsin(z/f);
 
-    const qreal fxy = qPow(x*x+y*y,0.5);
     const qreal g   = EARTH_GRAVITY;
-    const qreal gxy = pow( g<z?0:g*g-z*z ,0.5);
-    const qreal gx  = fxy==0? 0 : gxy*x/fxy;
-    const qreal gxz = qPow(gx*gx+z*z,0.5);
+    const qreal gxz = x==0 && y==0? 0 : pow( (x*x*g*g+z*z*y*y)/(x*x+y*y), 0.5 );
 
     const qreal sinb = z/gxz;
     const qreal bt_p = qAsin( sinb>1?1:(sinb<-1?-1:sinb) );
-    const qreal bt = ambiguity? M_PI-bt_p : bt_p;
-    const qreal nx = f*qCos(al) - gxz*qCos(bt);
+    const qreal bt   = ambiguity? M_PI-bt_p : bt_p;
+    const qreal nx   = x - gxz*qCos(bt);
 
     res.beta = bt;
     res.newX = nx;
@@ -455,6 +478,9 @@ void SialanSensors::timerEvent(QTimerEvent *e)
         emit angleChanged();
         emit angleSpeedChanged();
         emit updated();
+
+//        qDebug() << p->a_vector.x << p->a_vector.y << p->a_vector.z
+//                 << angleX() << angleY() << angleZ();
     }
     else
         QObject::timerEvent(e);
