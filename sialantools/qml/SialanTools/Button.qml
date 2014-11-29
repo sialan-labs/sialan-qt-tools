@@ -38,11 +38,17 @@ Rectangle {
     property bool press: marea.pressed
     property bool enter: marea.containsMouse
 
-    property string highlightColor: "#0d80ec"
+    property string highlightColor: masterPalette.highlight
     property string normalColor: "#00000000"
     property alias textColor: txt.color
 
     property alias cursorShape: marea.cursorShape
+    property real textMargin: 1*physicalPlatformScale
+
+    property color tooltipColor: "#cc000000"
+    property color tooltipTextColor: "#ffffff"
+    property font tooltipFont
+    property string tooltipText
 
     signal clicked()
 
@@ -67,7 +73,7 @@ Rectangle {
 
         Text{
             id: txt
-            y: parent.height/2 - height/2 - 1*physicalPlatformScale
+            y: parent.height/2 - height/2 - textMargin
             color: "#ffffff"
             font.bold: Devices.isWindows? false : true
             font.family: SApp.globalFontFamily
@@ -80,5 +86,35 @@ Rectangle {
         anchors.fill: parent
         hoverEnabled: true
         onClicked: button.clicked()
+        onEntered: if( !tooltipItem && tooltipText.length != 0 ) tooltipItem = tooltip_component.createObject(button)
+        onExited: if( tooltipItem ) tooltipItem.end()
+
+        property variant tooltipItem
+    }
+
+    Component {
+        id: tooltip_component
+
+        Rectangle {
+            anchors.verticalCenter: parent.verticalCenter
+            anchors.left: parent.right
+            anchors.margins: 2*physicalPlatformScale
+            color: tooltipColor
+            width: tooltip_txt.width + 14*physicalPlatformScale
+            height: tooltip_txt.height + 14*physicalPlatformScale
+            radius: 3*physicalPlatformScale
+
+            Text {
+                id: tooltip_txt
+                anchors.centerIn: parent
+                font: tooltipFont
+                color: tooltipTextColor
+                text: tooltipText
+            }
+
+            function end() {
+                destroy()
+            }
+        }
     }
 }

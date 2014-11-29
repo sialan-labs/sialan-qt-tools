@@ -19,8 +19,12 @@
 #ifndef SIALANDESKTOPTOOLS_H
 #define SIALANDESKTOPTOOLS_H
 
+#include "sialan_macros.h"
+
 #include <QObject>
 #include <QColor>
+#include <QDir>
+#include <QWindow>
 
 class SialanDesktopToolsPrivate;
 class SialanDesktopTools : public QObject
@@ -53,6 +57,13 @@ public:
     QColor titleBarTransparentColor() const;
     QColor titleBarTextColor() const;
     bool titleBarIsDark() const;
+
+public slots:
+#ifdef DESKTOP_DEVICE
+    QString getOpenFileName(QWindow *window = 0, const QString &title = QString(), const QString &filter = QString(), const QString & startPath = QDir::homePath() );
+    QString getSaveFileName(QWindow *window = 0, const QString &title = QString(), const QString &filter = QString(), const QString & startPath = QDir::homePath() );
+    QString getExistingDirectory(QWindow *window = 0, const QString &title = QString(), const QString & startPath = QDir::homePath());
+#endif
 
 signals:
     void titleBarColorChanged();
